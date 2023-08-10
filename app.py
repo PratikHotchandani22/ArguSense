@@ -18,21 +18,24 @@ from sklearn.metrics import log_loss
 import torch.nn.functional as F
 import spacy_streamlit
 
+st.set_page_config(layout='wide')
+
 custom_css = """
 <style>
+#html-container {
+    height: 100vh; /* Set the container height to full viewport height */
+    overflow: auto; /* Add scrolling if content overflows */
+}
+
 .dynamic-html {
     font-size: 20px;
     line-height: 1.5;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
+    display: block;
+    width: 100%;
+    /* Remove the fixed height to allow the content to expand vertically */
 }
 </style>
 """
-
-
-st.set_page_config(layout='wide')
-st.markdown(custom_css, unsafe_allow_html=True)
 
 
 final_predictons = pd.DataFrame()
@@ -42,20 +45,10 @@ st.markdown("<h1><em>ArguSense: Intelligent NLP-driven Argument Evaluation and E
 
 st.subheader("Enter your argument in the textbox below")
 
-if "tokenizer" not in st.session_state:
-    st.session_state['tokenizer'] = None
 
-if "model" not in st.session_state:
-    st.session_state['model'] = None
 
-if "loaded_tokz" not in st.session_state:
-    st.session_state['loaded_tokz'] = None
+# Check if model is already in session_state
 
-if "loaded_trainer" not in st.session_state:
-    st.session_state['loaded_trainer'] = None
-
-if "button" not in st.session_state:
-    st.session_state['button'] = None
 
 # Add a textbox to the app
 user_input = st.text_area("Enter your text:", "Default text", height=400)
@@ -66,7 +59,10 @@ spinner_text = "Setting up your environment..."
 ## model building start
 @st.cache_data(show_spinner = spinner_text)
 def model_building():
-    st.session_state['tokenizer'] = AutoTokenizer.from_pretrained('input')
+
+    if "tokenizer" not in st.session_state:
+        st.session_state['tokenizer'] = AutoTokenizer.from_pretrained('input')
+
 
     targets = np.load('targets_1024.npy')
     train_tokens = np.load('tokens_1024.npy')
@@ -93,19 +89,24 @@ def model_building():
     tf.keras.utils.get_custom_objects()["swish"] = tf.keras.activations.swish
     tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
-    st.session_state['model'] = build_model()
+    if 'model' not in st.session_state:
+        st.session_state.model = build_model()
 
     st.session_state['model'].load_weights('long_v14.h5')
 
     model_nm = 'deberta'
+    
 
     # Load the trained model and tokenizer
     loaded_model = AutoModelForSequenceClassification.from_pretrained(model_nm)
-    st.session_state['loaded_tokz'] = AutoTokenizer.from_pretrained(model_nm)
+
+    if "loaded_tokz" not in st.session_state:
+        st.session_state['loaded_tokz'] = AutoTokenizer.from_pretrained(model_nm)
+
+    if "loaded_trainer" not in st.session_state:
+        st.session_state['loaded_trainer'] = Trainer(model=loaded_model, tokenizer=st.session_state['loaded_tokz'], compute_metrics=score)
 
     # Set up the Trainer for prediction
-    st.session_state['loaded_trainer'] = Trainer(model=loaded_model, tokenizer=st.session_state['loaded_tokz'], compute_metrics=score)
-
     st.success("Your Workspace is ready!")
 
 
@@ -115,11 +116,11 @@ def score(preds): return {'log loss': log_loss(preds.label_ids, F.softmax(torch.
 
 
 model_building()
-st.session_state['button'] =  st.button("Proceed")
+button =  st.button("Proceed")
 
 ## Model Build complete
 
-if st.session_state['button'] and len(user_input)>0:
+if button and len(user_input)>0:
 
     with st.spinner("Evaluating your argument...."):
         # CONVERT TEST TEXT TO TOKENS
@@ -134,8 +135,8 @@ if st.session_state['button'] and len(user_input)>0:
         txt = text_to_write
         tokens = st.session_state['tokenizer'].encode_plus(txt, max_length=MAX_LEN, padding='max_length',
                                     truncation=True, return_offsets_mapping=True)
-        test_tokens[0,] = tokens['input_ids']
-        test_attention[0,] = tokens['attention_mask']
+        test_tokens[0,] =  tokens['input_ids']
+        test_attention[0,] =  tokens['attention_mask']
 
         # INFER TEST TEXTS
         p = st.session_state['model'].predict([test_tokens, test_attention],
@@ -148,7 +149,7 @@ if st.session_state['button'] and len(user_input)>0:
 
         all_predictions = []
 
-        tokens = st.session_state['tokenizer'].encode_plus(txt, max_length=MAX_LEN, padding='max_length',
+        st.session_state['tokens'] = st.session_state['tokenizer'].encode_plus(txt, max_length=MAX_LEN, padding='max_length',
                                     truncation=True, return_offsets_mapping=True)
         off = tokens['offset_mapping']
 
@@ -329,12 +330,12 @@ if st.session_state['button'] and len(user_input)>0:
                 "title": "Evaluated Argument"
             }
 
-            options = {"ents": final_df.Effectiveness.unique().tolist(), "colors": colors}
+            options = {"ents": final_df.Effectiveness.unique().tolist(), "colors": colors, "compact" : False}
             html = displacy.render(doc2, style="ent", options=options, manual = True)
-            
-            # Set the class of the HTML content
-            styled_html = f'<div class="dynamic-html">{html}</div>'
-            st.write(styled_html, unsafe_allow_html=True)
+            st.components.v1.html(html, width=None, height=1000, scrolling=True)
+
+
+            #st.write(html, unsafe_allow_html=True)
 
 
 
