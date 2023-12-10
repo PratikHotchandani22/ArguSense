@@ -1,4 +1,6 @@
+# CS 6120 NLP Project 
 # ArguSense: Elevating Argument Evaluation using NLP
+Team Members: Pratik Satish Hotchandani (002762545) MS in Data Science (https://github.com/PratikHotchandani22), Rohit Sisir Sahoo (002736531) MS in Computer Science (https://github.com/rohit-sahoo)
 
 ## Overview
 
