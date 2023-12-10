@@ -1,4 +1,4 @@
-# CS 6120 NLP Project 
+# CS 6120: Natural Language Processing (Prof. Ahmad Uzair), Fall 2023
 # ArguSense: Elevating Argument Evaluation using NLP
 Team Members: Pratik Satish Hotchandani (002762545) MS in Data Science (https://github.com/PratikHotchandani22), Rohit Sisir Sahoo (002736531) MS in Computer Science (https://github.com/rohit-sahoo)
 
